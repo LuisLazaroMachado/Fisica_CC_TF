@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from scipy.signal import find_peaks
 import math
+import json
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -140,6 +141,30 @@ def mostrar():
             st.error("El esquema NO cumple la condición de estabilidad de Courant (a > 1).")
 
     # =========================================================
+    # ¿QUÉ ES UN NODO Y UN ANTINODO? (explicación rápida)
+    # =========================================================
+    with st.expander("❓ ¿Qué es un nodo y un antinodo?"):
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.markdown(
+                "**🔵 Nodo**\n\n"
+                "Punto de la cuerda que **nunca se mueve**. "
+                "Los extremos siempre son nodos porque la cuerda "
+                "está fija ahí. Con el modo n se forman **n+1 nodos**."
+            )
+        with col_b:
+            st.markdown(
+                "**🔴 Antinodo**\n\n"
+                "Punto que se mueve con la **máxima amplitud posible** "
+                "(sube y baja entre $-2A$ y $+2A$). Con el modo n se "
+                "forman **n antinodos**."
+            )
+        st.caption(
+            f"En nuestro sistema, n = {n_modo} → {n_modo} antinodos y {n_modo + 1} nodos "
+            f"(incluyendo los dos extremos fijos)."
+        )
+
+    # =========================================================
     # FUNCIONES DE DIBUJO (idénticas en lógica al original,
     # solo adaptadas para recibir el eje 'ax' como parámetro)
     # =========================================================
@@ -241,36 +266,39 @@ def mostrar():
     plt.close(fig)
 
     # =========================================================
-    # ANIMACIÓN: cuerda vibrando en tiempo real (HTML5 canvas)
-    # Usa la solución analítica exacta ya definida en el código
-    # (desplazamiento_exacto) solo con fines visuales/educativos.
-    # No reemplaza ni modifica el resultado numérico de arriba.
+    # ANIMACIÓN: recorrido real por t1, t2, t3, t4, t5
+    # Usa EXACTAMENTE los perfiles calculados por diferencias
+    # finitas (los mismos que en la gráfica "Perfil de onda"),
+    # no una fórmula aproximada. Solo se anima la transición.
     # =========================================================
-    st.markdown("### 🎻 Animación: la cuerda vibrando")
+    st.markdown("### 🎻 Animación: la cuerda en los 5 instantes capturados")
     st.caption(
-        f"El periodo real de oscilación es T ≈ {T_per*1000:.3f} ms — demasiado "
-        "rápido para verlo a simple vista. Esta animación lo muestra en cámara "
-        "lenta, a una velocidad que podés ajustar, conservando la forma exacta "
-        "del modo n = {} (nodos y antinodos en su posición real).".format(n_modo)
+        "Recorre los mismos 5 instantes $t_1$ a $t_5$ (separados por T/4) que "
+        "ya hay en la gráfica de arriba, pero en secuencia animada. El punto "
+        "rojo es el antinodo de referencia: nos fijamos cómo su altura cambia entre "
+        "cada instante — eso es lo que se mide en la gráfica 'Amplitud vs tiempo'."
     )
 
-    velocidad_anim = st.slider(
-        "Velocidad de la animación (periodo visual, en segundos)",
-        min_value=0.5, max_value=6.0, value=3.0, step=0.5
-    )
+    perfiles_ordenados = sorted(perfiles.items())
+    n_perfiles = len(perfiles_ordenados)
 
-    # Posiciones reales de nodos y antinodos del modo n_modo
-    nodos_x = [j * L / n_modo for j in range(0, n_modo + 1)]
-    antinodos_x = [(2 * j - 1) * L / (2 * n_modo) for j in range(1, n_modo + 1)]
-    nodos_js = ", ".join(f"{val:.6f}" for val in nodos_x)
-    antinodos_js = ", ".join(f"{val:.6f}" for val in antinodos_x)
-    idx_antinodo_resaltado = min(
-        range(len(antinodos_x)),
-        key=lambda i: abs(antinodos_x[i] - x_antinodo_real)
+    x_json = json.dumps([round(float(v), 6) for v in x.tolist()])
+    perfiles_json = json.dumps(
+        [[round(float(v), 8) for v in perfil.tolist()] for _, perfil in perfiles_ordenados]
+    )
+    t_caps_json = json.dumps([round(float(t_cap), 6) for t_cap, _ in perfiles_ordenados])
+    fracciones_json = json.dumps([round(idx / 4.0, 2) for idx in range(n_perfiles)])
+    amplitudes_antinodo_json = json.dumps(
+        [round(float(perfil[idx_antinodo]), 8) for _, perfil in perfiles_ordenados]
     )
 
     html_cuerda = f"""
-<canvas id="cv_cuerda" width="700" height="280"
+<div style="display:flex;justify-content:center;gap:10px;margin-bottom:8px;">
+    <button id="btn_prev" style="padding:6px 14px;border-radius:6px;border:none;background:#333;color:white;cursor:pointer;">⏮ Anterior</button>
+    <button id="btn_play" style="padding:6px 18px;border-radius:6px;border:none;background:#1a6faf;color:white;cursor:pointer;">▶ Reproducir</button>
+    <button id="btn_next" style="padding:6px 14px;border-radius:6px;border:none;background:#333;color:white;cursor:pointer;">Siguiente ⏭</button>
+</div>
+<canvas id="cv_cuerda" width="700" height="300"
         style="background:#0a0a1a;border-radius:10px;display:block;margin:auto;">
 </canvas>
 <script>
@@ -278,14 +306,15 @@ const canvas = document.getElementById("cv_cuerda");
 const ctx    = canvas.getContext("2d");
 const W = canvas.width, H = canvas.height;
 
-const L_js       = {L};
-const A_js       = {amplitud};
-const k_js       = {k_n};
-const n_modo_js  = {n_modo};
-const T_visual   = {velocidad_anim};   // periodo visual en segundos (no es T real)
-const nodos      = [{nodos_js}];
-const antinodos  = [{antinodos_js}];
-const idx_resaltado = {idx_antinodo_resaltado};
+const L_js          = {L};
+const A_js          = {amplitud};
+const x_arr         = {x_json};
+const perfiles_arr  = {perfiles_json};
+const t_caps        = {t_caps_json};
+const fracciones_T  = {fracciones_json};
+const amp_antinodo  = {amplitudes_antinodo_json};
+const x_antinodo_js = {x_antinodo_real};
+const n_perfiles    = perfiles_arr.length;
 
 const margen_x = 50;
 const margen_y = 40;
@@ -296,13 +325,19 @@ const ESCALA_Y = (H / 2 - margen_y) / (2 * A_js);
 function xPix(xm) {{ return margen_x + xm * PX_POR_M; }}
 function yPix(ym) {{ return cy - ym * ESCALA_Y; }}
 
-let inicio = null;
+let idx_actual = 0;
+let reproduciendo = false;
+let ultimo_cambio = 0;
+const INTERVALO_MS = 900;
 
-function dibujar(timestamp) {{
-    if (inicio === null) inicio = timestamp;
-    const t_s = (timestamp - inicio) / 1000;
-    const omega_visual = 2 * Math.PI / T_visual;
+function valorEnX(perfil, xm) {{
+    // Interpolación simple para hallar y en x = xm dentro del arreglo discreto
+    let i = Math.round((xm / L_js) * (perfil.length - 1));
+    i = Math.max(0, Math.min(perfil.length - 1, i));
+    return perfil[i];
+}}
 
+function dibujarFrame() {{
     ctx.clearRect(0, 0, W, H);
 
     // Línea de referencia (cuerda en reposo)
@@ -313,27 +348,20 @@ function dibujar(timestamp) {{
     ctx.lineTo(xPix(L_js), cy);
     ctx.stroke();
 
-    // Envolvente (máxima amplitud posible en cada punto)
-    ctx.strokeStyle = "rgba(100,180,255,0.35)";
-    ctx.setLineDash([4, 4]);
-    ctx.lineWidth = 1.2;
+    // Perfil anterior (fantasma, para notar el movimiento)
+    const idx_prev = (idx_actual - 1 + n_perfiles) % n_perfiles;
+    const perfil_prev = perfiles_arr[idx_prev];
+    ctx.strokeStyle = "rgba(255,255,255,0.18)";
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    for (let i = 0; i <= 300; i++) {{
-        const xm = (i / 300) * L_js;
-        const env = 2 * A_js * Math.abs(Math.sin(k_js * xm));
-        const px = xPix(xm), py = yPix(env);
+    for (let i = 0; i < x_arr.length; i++) {{
+        const px = xPix(x_arr[i]), py = yPix(perfil_prev[i]);
         if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
     }}
-    for (let i = 300; i >= 0; i--) {{
-        const xm = (i / 300) * L_js;
-        const env = -2 * A_js * Math.abs(Math.sin(k_js * xm));
-        const py = yPix(env);
-        ctx.lineTo(xPix(xm), py);
-    }}
     ctx.stroke();
-    ctx.setLineDash([]);
 
-    // Cuerda vibrando: y(x,t) = 2A sin(kx) sin(omega_visual t)
+    // Perfil actual
+    const perfil = perfiles_arr[idx_actual];
     const grad = ctx.createLinearGradient(xPix(0), 0, xPix(L_js), 0);
     grad.addColorStop(0, "#64dcff");
     grad.addColorStop(0.5, "#ffdd55");
@@ -341,66 +369,164 @@ function dibujar(timestamp) {{
     ctx.strokeStyle = grad;
     ctx.lineWidth = 3;
     ctx.beginPath();
-    for (let i = 0; i <= 400; i++) {{
-        const xm = (i / 400) * L_js;
-        const ym = 2 * A_js * Math.sin(k_js * xm) * Math.sin(omega_visual * t_s);
-        const px = xPix(xm), py = yPix(ym);
+    for (let i = 0; i < x_arr.length; i++) {{
+        const px = xPix(x_arr[i]), py = yPix(perfil[i]);
         if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
     }}
     ctx.stroke();
 
-    // Soportes fijos en los extremos
+    // Soportes fijos
     ctx.fillStyle = "#888";
     ctx.fillRect(xPix(0) - 6, cy - 14, 12, 28);
     ctx.fillRect(xPix(L_js) - 6, cy - 14, 12, 28);
 
-    // Nodos (puntos fijos, no se mueven)
-    ctx.fillStyle = "#aaaaaa";
-    for (const xn of nodos) {{
-        ctx.beginPath();
-        ctx.arc(xPix(xn), cy, 4, 0, 2 * Math.PI);
-        ctx.fill();
-    }}
+    // Antinodo de referencia resaltado
+    const y_antinodo = valorEnX(perfil, x_antinodo_js);
+    ctx.beginPath();
+    ctx.arc(xPix(x_antinodo_js), yPix(y_antinodo), 8, 0, 2 * Math.PI);
+    ctx.fillStyle = "#ff5a36";
+    ctx.fill();
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
 
-    // Antinodos (oscilan junto con la cuerda)
-    for (let i = 0; i < antinodos.length; i++) {{
-        const xa = antinodos[i];
-        const ya = 2 * A_js * Math.sin(k_js * xa) * Math.sin(omega_visual * t_s);
-        const esResaltado = (i === idx_resaltado);
-        ctx.beginPath();
-        ctx.arc(xPix(xa), yPix(ya), esResaltado ? 7 : 5, 0, 2 * Math.PI);
-        ctx.fillStyle = esResaltado ? "#ff5a36" : "#ffee44";
-        ctx.fill();
-        ctx.strokeStyle = "white";
-        ctx.lineWidth = 1;
-        ctx.stroke();
-    }}
-
-    // Etiqueta del antinodo de referencia
-    const xa_ref = antinodos[idx_resaltado];
-    const ya_ref = 2 * A_js * Math.sin(k_js * xa_ref) * Math.sin(omega_visual * t_s);
     ctx.fillStyle = "#ff5a36";
     ctx.font = "bold 12px Arial";
-    ctx.fillText("x = " + xa_ref.toFixed(3) + " m", xPix(xa_ref) + 10, yPix(ya_ref) - 10);
+    ctx.fillText(
+        "y = " + y_antinodo.toFixed(5) + " m",
+        xPix(x_antinodo_js) + 12,
+        yPix(y_antinodo) - 10
+    );
 
-    // Panel de datos
-    ctx.fillStyle = "rgba(0,0,0,0.6)";
-    ctx.fillRect(10, 10, 160, 60);
+    // Panel de información del instante actual
+    ctx.fillStyle = "rgba(0,0,0,0.65)";
+    ctx.fillRect(10, 10, 230, 70);
     ctx.strokeStyle = "rgba(255,255,255,0.25)";
-    ctx.strokeRect(10, 10, 160, 60);
+    ctx.strokeRect(10, 10, 230, 70);
     ctx.fillStyle = "white";
-    ctx.font = "bold 12px Arial";
-    ctx.fillText("Modo n = " + n_modo_js, 20, 28);
+    ctx.font = "bold 13px Arial";
+    ctx.fillText("t" + (idx_actual + 1) + "  =  " + t_caps[idx_actual].toFixed(5) + " s", 20, 30);
     ctx.fillStyle = "#aef";
     ctx.font = "12px Arial";
-    ctx.fillText("Nodos: " + nodos.length, 20, 45);
+    ctx.fillText("Desfase: +" + fracciones_T[idx_actual].toFixed(2) + " T", 20, 48);
     ctx.fillStyle = "#ffa";
-    ctx.fillText("Antinodos: " + antinodos.length, 20, 60);
+    ctx.fillText("Amplitud antinodo: " + amp_antinodo[idx_actual].toFixed(5) + " m", 20, 65);
 
-    requestAnimationFrame(dibujar);
+    // Indicador de progreso (puntos t1..t5)
+    const cx0 = W - 140;
+    for (let i = 0; i < n_perfiles; i++) {{
+        const px = cx0 + i * 22;
+        ctx.beginPath();
+        ctx.arc(px, 25, 6, 0, 2 * Math.PI);
+        ctx.fillStyle = (i === idx_actual) ? "#ff5a36" : "rgba(255,255,255,0.3)";
+        ctx.fill();
+        ctx.fillStyle = "white";
+        ctx.font = "9px Arial";
+        ctx.fillText("t" + (i + 1), px - 6, 42);
+    }}
 }}
 
-requestAnimationFrame(dibujar);
+function avanzar() {{
+    idx_actual = (idx_actual + 1) % n_perfiles;
+    dibujarFrame();
+}}
+function retroceder() {{
+    idx_actual = (idx_actual - 1 + n_perfiles) % n_perfiles;
+    dibujarFrame();
+}}
+
+document.getElementById("btn_next").addEventListener("click", () => {{
+    reproduciendo = false;
+    document.getElementById("btn_play").innerText = "▶ Reproducir";
+    avanzar();
+}});
+document.getElementById("btn_prev").addEventListener("click", () => {{
+    reproduciendo = false;
+    document.getElementById("btn_play").innerText = "▶ Reproducir";
+    retroceder();
+}});
+document.getElementById("btn_play").addEventListener("click", () => {{
+    reproduciendo = !reproduciendo;
+    document.getElementById("btn_play").innerText = reproduciendo ? "⏸ Pausar" : "▶ Reproducir";
+}});
+
+function loop(timestamp) {{
+    if (reproduciendo && timestamp - ultimo_cambio > INTERVALO_MS) {{
+        avanzar();
+        ultimo_cambio = timestamp;
+    }}
+    requestAnimationFrame(loop);
+}}
+
+dibujarFrame();
+requestAnimationFrame(loop);
 </script>
 """
-    components.html(html_cuerda, height=300)
+    components.html(html_cuerda, height=370)
+
+    # =========================================================
+    # SECCIÓN EDUCATIVA: explorador conceptual del modo n
+    # (Puramente ilustrativo — NO forma parte de los resultados
+    # numéricos del informe. Solo ayuda a entender qué hace "n".)
+    # =========================================================
+    st.markdown("---")
+    st.markdown("### 🧠 Explorador conceptual: ¿qué hace el modo n?")
+    st.caption(
+        "Esta sección es solo educativa: cambia un número n de prueba y mira "
+        "cómo cambian los nodos y antinodos. **No afecta los resultados de tu "
+        f"informe**, que siempre usa n = {n_modo} como pide el enunciado."
+    )
+
+    n_conceptual = st.slider("Modo n de prueba", min_value=1, max_value=10, value=n_modo)
+
+    fig_concepto, ax_c = plt.subplots(figsize=(12, 3.2))
+    x_fino = np.linspace(0, L, 400)
+    y_fino = np.sin(n_conceptual * np.pi * x_fino / L)
+    ax_c.plot(x_fino, y_fino, color="#1a6faf", linewidth=2.5)
+    ax_c.axhline(0, color="black", linewidth=0.7)
+
+    nodos_c = [j * L / n_conceptual for j in range(0, n_conceptual + 1)]
+    antinodos_c = [(2 * j - 1) * L / (2 * n_conceptual) for j in range(1, n_conceptual + 1)]
+    ax_c.scatter(nodos_c, [0] * len(nodos_c), color="#888888", s=60, zorder=5, label="Nodos (fijos)")
+    ax_c.scatter(
+        antinodos_c,
+        [np.sin(n_conceptual * np.pi * xv / L) for xv in antinodos_c],
+        color="#ff5a36", s=60, zorder=5, label="Antinodos (máxima oscilación)"
+    )
+    ax_c.set_xlim(0, L)
+    ax_c.set_ylim(-1.3, 1.3)
+    ax_c.set_xlabel("Posición x (m)")
+    ax_c.set_title(f"Modo n = {n_conceptual}  →  {n_conceptual} antinodos, {n_conceptual + 1} nodos", fontsize=11)
+    ax_c.legend(loc="upper right", fontsize=8)
+    ax_c.grid(alpha=0.3)
+    st.pyplot(fig_concepto)
+    plt.close(fig_concepto)
+
+    # =========================================================
+    # SECCIÓN EDUCATIVA: cómo influyen los parámetros físicos
+    # =========================================================
+    with st.expander("⚙️ ¿Cómo influye cada parámetro en la velocidad y frecuencia?"):
+        col_t, col_d, col_l = st.columns(3)
+        with col_t:
+            st.markdown("**Tensión (T)**")
+            st.markdown(
+                "Cuerda más tensa → onda **más rápida** y **más aguda**.\n\n"
+                r"$v = \sqrt{T/\mu}$"
+            )
+        with col_d:
+            st.markdown("**Densidad lineal (μ)**")
+            st.markdown(
+                "Cuerda más gruesa/pesada → onda **más lenta** y **más grave**.\n\n"
+                r"$v = \sqrt{T/\mu}$"
+            )
+        with col_l:
+            st.markdown("**Longitud (L) y modo (n)**")
+            st.markdown(
+                "Cuerda más larga, o modo más alto → **más nodos y antinodos**, "
+                "y la frecuencia sube.\n\n"
+                r"$f_n = \dfrac{n}{2L}\sqrt{T/\mu}$"
+            )
+        st.caption(
+            f"Con tus valores actuales: v = {velocidad:.2f} m/s, f = {f_osc:.2f} Hz, "
+            f"T = {T_per:.6f} s."
+        )
