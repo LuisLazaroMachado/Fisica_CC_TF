@@ -262,28 +262,106 @@ const pi     = Math.PI;
 // Escala: cuántos píxeles por metro
 const PX_POR_M = (W - CX - 30) / {float(x_values.max())};
 // ── Partículas ──────────────────────────────────────────
-const N_PART = 60;
+const N_PART = 130;
 let particulas = [];
-function crearParticula() {{
-    // Ángulo aleatorio (solo lado derecho, campo radial hacia afuera)
-    const ang = (Math.random() - 0.5) * Math.PI;
-    // Velocidad proporcional al campo en esa distancia angular inicial
-    const vel_base = 1.5 + 5.0 * (E_val / E_max);
-    return {{
-        x: CX,
-        y: CY,
-        ang: ang,
-        vel: vel_base * (0.7 + 0.6 * Math.random()),
-        vida: 0,
-        vida_max: 80 + Math.random() * 60
+
+function crearParticula(){{
+
+    // Nace en cualquier punto de la barra
+    const y0 = 35 + Math.random()*(H-70);
+
+    // Sale únicamente hacia la derecha
+    const ang = (Math.random()-0.5)*0.45;
+
+    return{{
+        x:CX,
+        y:y0,
+        ang:ang,
+        dist:0,
+        vida:0,
+        vida_max:140+Math.random()*80
     }};
 }}
-for (let i = 0; i < N_PART; i++) {{
-    let p = crearParticula();
-    // Arrancar en posiciones distribuidas para que no salgan todas a la vez
-    p.vida = Math.random() * p.vida_max;
+
+for(let i=0;i<N_PART;i++){{
+    const p=crearParticula();
+    p.vida=Math.random()*p.vida_max;
     particulas.push(p);
 }}
+
+// ── Función para dibujar una flecha (línea + punta) ──────
+function dibujarFlecha(x1, y1, x2, y2, color, grosor) {{
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = grosor;
+
+    // Línea principal
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    // Punta de flecha (triángulo)
+    const angulo = Math.atan2(y2 - y1, x2 - x1);
+    const tamPunta = 5 + grosor; // tamaño proporcional al grosor
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(
+        x2 - tamPunta * Math.cos(angulo - Math.PI / 6),
+        y2 - tamPunta * Math.sin(angulo - Math.PI / 6)
+    );
+    ctx.lineTo(
+        x2 - tamPunta * Math.cos(angulo + Math.PI / 6),
+        y2 - tamPunta * Math.sin(angulo + Math.PI / 6)
+    );
+    ctx.closePath();
+    ctx.fill();
+}}
+
+// ── Tiempo global para animar las flechas ────────────────
+let tiempoFlechas = 0;
+
+// ── Dibuja las flechas de campo eléctrico radiando de la barra ──
+function dibujarFlechasCampo() {{
+    const N_FILAS = 7;
+    const N_COLUMNAS = 4;
+    const x_max_flechas = {float(x_values.max())};
+    const espacio_ciclo = x_max_flechas - 0.5; // recorrido total de cada flecha
+
+    for (let fila = 0; fila < N_FILAS; fila++) {{
+        const yy = 45 + fila * (H - 90) / (N_FILAS - 1);
+
+        for (let col = 0; col < N_COLUMNAS; col++) {{
+            // posición base de cada flecha en su "carril" (columna)
+            const base = (col / N_COLUMNAS) * espacio_ciclo;
+
+            // desplazamiento animado: avanza con el tiempo y vuelve a 0.5 al llegar al final
+            const x_real = 0.5 + (base + tiempoFlechas) % espacio_ciclo;
+
+            const campo = lam_js / (2 * pi * eps0 * x_real);
+            const intensidad = Math.min(campo / E_max, 1);
+
+            const px = CX + x_real * PX_POR_M;
+            if (px > W - 20) continue;
+
+            const largo = 14 + 26 * intensidad;
+            const grosor = 1 + 2.5 * intensidad;
+            const alpha = 0.35 + 0.65 * intensidad;
+
+            dibujarFlecha(
+                px, yy,
+                px + largo, yy,
+                `rgba(255,140,40,${{alpha}})`,
+                grosor
+            );
+        }}
+    }}
+
+    // incrementa el tiempo: más rápido cerca de la barra estaría mejor,
+    // pero un avance constante ya da un buen efecto de "flujo"
+    tiempoFlechas += 0.15;
+}}
+
 // ── Loop principal ───────────────────────────────────────
 function dibujar() {{
     ctx.clearRect(0, 0, W, H);
@@ -331,65 +409,95 @@ function dibujar() {{
     ctx.font = "bold 12px Arial";
     ctx.fillText("E = " + E_str, px_x + 4, 50);
     // ── Partículas (cargas positivas que salen radialmente) ──
-    for (let p of particulas) {{
-        p.vida += 1;
-        if (p.vida > p.vida_max) {{
-            // Reiniciar
-            Object.assign(p, crearParticula());
-        }}
-        const t      = p.vida / p.vida_max;
-        const dist   = p.vel * p.vida;          // píxeles desde la barra
-        const px     = CX + dist * Math.cos(p.ang);
-        const py     = CY + dist * Math.sin(p.ang);
-        const alpha  = 1 - t;                  // desvanece al alejarse
-        const radio  = 3 + 2 * (1 - t);
-        // Color: amarillo cerca, azul lejos (campo débil)
-        const r = Math.floor(255 * (1 - t * 0.6));
-        const g = Math.floor(200 * (1 - t));
-        const b = Math.floor(80  + 175 * t);
-        ctx.beginPath();
-        ctx.arc(px, py, radio, 0, 2 * Math.PI);
-        ctx.fillStyle = `rgba(${{r}},${{g}},${{b}},${{alpha}})`;
-        ctx.fill();
-        // "+" en la partícula
-        ctx.fillStyle = `rgba(255,255,255,${{alpha * 0.9}})`;
-        ctx.font = "bold 9px Arial";
-        ctx.fillText("+", px - 3, py + 3);
+    // ── Partículas ───────────────────────────────────────────
+    for(let p of particulas){{
+
+    p.vida++;
+
+    if(p.vida>p.vida_max){{
+        Object.assign(p,crearParticula());
     }}
-    // ── Líneas de campo radiales (fijas, estilo libro de texto) ──
-    const N_LINEAS = 8;
-    for (let i = 0; i < N_LINEAS; i++) {{
-        const ang = -Math.PI/2 + (i / N_LINEAS) * Math.PI;
-        ctx.strokeStyle = "rgba(255,180,0,0.18)";
-        ctx.lineWidth   = 1;
-        ctx.beginPath();
-        ctx.moveTo(CX + 8 * Math.cos(ang), CY + 8 * Math.sin(ang));
-        ctx.lineTo(CX + (W - CX - 20) * Math.cos(ang),
-                   CY + (W - CX - 20) * Math.sin(ang));
-        ctx.stroke();
+
+    // velocidad depende de la distancia REAL a la barra
+    const x_real=Math.max(0.15,p.dist/PX_POR_M);
+
+    const campo=lam_js/(2*pi*eps0*x_real);
+    const intensidad=Math.min(campo/E_max,1);
+    const vel=0.4+7.0*intensidad;
+    p.dist+=vel;
+
+    const px=CX+p.dist*Math.cos(p.ang);
+    const py=p.y+p.dist*Math.sin(p.ang);
+
+    if(px>W+30){{
+        Object.assign(p,crearParticula());
     }}
+
+    const alpha=0.25+0.75*intensidad;
+    const radio=2+2.5*intensidad;
+
+    ctx.beginPath();
+    ctx.arc(px,py,radio,0,2*Math.PI);
+    ctx.fillStyle=`rgba(255,220,80,${{alpha}})`;
+    ctx.fill();
+
+    ctx.fillStyle=`rgba(255,255,255,${{alpha}})`;
+    ctx.font="bold 8px Arial";
+    ctx.fillText("+",px-2,py+3);
+}}
+    // ── Líneas de campo ──────────────────────────────────────
+const N_LINEAS=18;
+
+for(let i=0;i<N_LINEAS;i++){{
+
+    const yy=35+i*(H-70)/(N_LINEAS-1);
+
+    ctx.beginPath();
+
+    for(let xx=0;xx<520;xx+=10){{
+
+        const xr=Math.max(0.3,xx/PX_POR_M);
+        const campo=lam_js/(2*pi*eps0*xr);
+        const intensidad=Math.min(campo/E_max,1);
+        const amp=6*intensidad;
+        const y=yy+Math.sin(xx*0.03+i)*amp;
+
+        if(xx===0)
+            ctx.moveTo(CX,y);
+        else
+            ctx.lineTo(CX+xx,y);
+    }}
+
+    ctx.strokeStyle="rgba(80,180,255,0.35)";
+    ctx.lineWidth=1+2*(E_val/E_max);
+    ctx.stroke();
+}}
+    dibujarFlechasCampo();
+
     // ── Panel de datos ────────────────────────────────────
     ctx.fillStyle   = "rgba(0,0,0,0.65)";
-    ctx.fillRect(W - 215, 8, 205, 90);
+    const px_box = 550 ;
+    const py_box = H/2 - 50;
+    ctx.fillRect(px_box, py_box, 120, 95);
     ctx.strokeStyle = "rgba(255,255,255,0.25)";
     ctx.lineWidth   = 1;
-    ctx.strokeRect(W - 215, 8, 205, 90);
+    ctx.strokeRect(px_box, py_box, 120, 95);
     ctx.fillStyle = "white";
     ctx.font = "bold 12px Arial";
-    ctx.fillText("📊 Parámetros", W - 205, 28);
+    ctx.fillText("📊 Parámetros", px_box + 10, py_box + 20);
     ctx.font = "12px Arial";
     ctx.fillStyle = "#aef";
-    ctx.fillText("λ = 40,0 × 10⁻⁹ C/m", W - 205, 48);
+    ctx.fillText("λ = 40,0 × 10⁻⁹ C/m", px_box + 10, py_box + 40);
     ctx.fillStyle = "#ffa";
-    ctx.fillText("x = " + x_sel.toFixed(1) + " m", W - 205, 65);
+    ctx.fillText("x = " + x_sel.toFixed(1) + " m", px_box + 10, py_box + 57);
     ctx.fillStyle = "#aff";
-    ctx.fillText("E = " + E_str, W - 205, 82);
+    ctx.fillText("E = " + E_str, px_box + 10, py_box + 74);
     requestAnimationFrame(dibujar);
 }}
 dibujar();
 </script>
 """
-    st.markdown("### Visualización del campo eléctrico de la barra")
+    st.markdown("### Visualización del campo eléctrico de la barra(Mejorar con flechas)")
     st.caption("Las partículas representan cargas positivas empujadas por el campo. "
                "Cerca de la barra salen más rápido (campo fuerte). "
                "Mové el slider para ver cómo cambia E con la distancia.")
