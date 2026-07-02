@@ -472,9 +472,9 @@ requestAnimationFrame(loop);
     st.markdown("---")
     st.markdown("### 🧠 Explorador conceptual: ¿qué hace el modo n?")
     st.caption(
-        "Esta sección es solo educativa: cambia un número n de prueba y mira "
-        "cómo cambian los nodos y antinodos. **No afecta los resultados de tu "
-        f"informe**, que siempre usa n = {n_modo} como pide el enunciado."
+        "Esta sección es solo educativa: cambia un número n de prueba y "
+        "cómo cambian los nodos y antinodos. **No afecta los resultados del "
+        f"informe**, que siempre usa n = {n_modo}."
     )
 
     n_conceptual = st.slider("Modo n de prueba", min_value=1, max_value=10, value=n_modo)
