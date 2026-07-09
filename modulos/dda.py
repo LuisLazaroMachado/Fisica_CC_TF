@@ -100,132 +100,82 @@ def porcentaje_error(valor_aprox, valor_teorico):
 '''
 
     drawer_html = f"""
-<style>
+    <style>
+    #drawer-wrapper {{
+        position: fixed;
+        top: 80px;
+        left: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: flex-start;
+    }}
+    #drawer-panel {{
+        width: 0px;
+        overflow: hidden;
+        transition: width 0.35s ease;
+        background: #1e1e2e;
+        border-radius: 0 12px 12px 0;
+        box-shadow: 4px 0 18px rgba(0,0,0,0.5);
+    }}
+    #drawer-panel.open {{
+        width: 440px;
+    }}
+    #drawer-inner {{
+        width: 440px;
+        padding: 16px;
+        color: #cdd6f4;
+        font-family: monospace;
+        font-size: 12.5px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        max-height: 80vh;
+        overflow-y: auto;
+    }}
+    #drawer-btn {{
+        width: 32px;
+        min-height: 90px;
+        background: #313244;
+        color: #cdd6f4;
+        border: none;
+        border-radius: 0 8px 8px 0;
+        cursor: pointer;
+        font-size: 13px;
+        writing-mode: vertical-rl;
+        padding: 10px 6px;
+        box-shadow: 4px 0 10px rgba(0,0,0,0.4);
+        transition: background 0.2s;
+        letter-spacing: 1px;
+    }}
+    #drawer-btn:hover {{ background: #45475a; }}
+    #drawer-title {{
+        color: #89b4fa;
+        font-size: 13px;
+        font-weight: bold;
+        margin-bottom: 12px;
+        border-bottom: 1px solid #45475a;
+        padding-bottom: 6px;
+    }}
+    </style>
 
-html,body{{
-    margin:0;
-    padding:0;
-}}
-
-#drawer-container{{
-    position:fixed;
-    left:0;
-    top:70px;
-    z-index:999999;
-    display:flex;
-    align-items:flex-start;
-}}
-
-#drawer{{
-    width:0;
-    overflow:hidden;
-    transition:0.35s;
-    background:#1e1e2e;
-    border-radius:0 12px 12px 0;
-    box-shadow:4px 0 18px rgba(0,0,0,.45);
-}}
-
-#drawer.open{{
-    width:380px;
-}}
-
-#drawer-content{{
-    width:380px;
-    height:75vh;
-    overflow-y:auto;
-    padding:18px;
-    box-sizing:border-box;
-    color:#cdd6f4;
-    font-family:Consolas, monospace;
-    font-size:13px;
-    line-height:1.6;
-    white-space:pre-wrap;
-}}
-
-#drawer-content::-webkit-scrollbar{{
-    width:8px;
-}}
-
-#drawer-content::-webkit-scrollbar-thumb{{
-    background:#555;
-    border-radius:5px;
-}}
-
-#drawer-button{{
-    border:none;
-    background:#313244;
-    color:white;
-    width:34px;
-    height:130px;
-    cursor:pointer;
-    border-radius:0 8px 8px 0;
-    writing-mode:vertical-rl;
-    font-weight:bold;
-    font-size:14px;
-    box-shadow:4px 0 10px rgba(0,0,0,.35);
-}}
-
-#drawer-button:hover{{
-    background:#45475a;
-}}
-
-.titulo{{
-    color:#89b4fa;
-    font-weight:bold;
-    font-size:15px;
-    margin-bottom:10px;
-}}
-
-.subtitulo{{
-    color:#bac2de;
-    font-size:12px;
-    margin-bottom:15px;
-}}
-
-</style>
-
-<div id="drawer-container">
-
-    <div id="drawer">
-
-        <div id="drawer-content">
-
-<div class="titulo">
-📐 Código matemático principal
-</div>
-
-<div class="subtitulo">
-Funciones implementadas para el cálculo numérico y la validación teórica.
-</div>
-
-{codigo_matematico}
-
+    <div id="drawer-wrapper">
+        <div id="drawer-panel">
+            <div id="drawer-inner">
+                <div id="drawer-title">📐 Código matemático — dda.py</div>
+<pre>{codigo_matematico}</pre>
+            </div>
         </div>
-
+        <button id="drawer-btn" onclick="toggleDrawer()">📄 VER CÓDIGO</button>
     </div>
 
-    <button id="drawer-button" onclick="toggleDrawer()">
-        📄 Código
-    </button>
-
-</div>
-
-<script>
-
-function toggleDrawer(){{
-    let drawer=document.getElementById("drawer");
-    let btn=document.getElementById("drawer-button");
-
-    drawer.classList.toggle("open");
-
-    if(drawer.classList.contains("open"))
-        btn.innerHTML="✖ Cerrar";
-    else
-        btn.innerHTML="📄 Código";
-}}
-
-</script>
-"""
+    <script>
+    function toggleDrawer() {{
+        const panel = document.getElementById('drawer-panel');
+        const btn   = document.getElementById('drawer-btn');
+        panel.classList.toggle('open');
+        btn.textContent = panel.classList.contains('open') ? '✖ CERRAR' : '📄 VER CÓDIGO';
+    }}
+    </script>
+    """
 
     components.html(drawer_html, height=500)
 
@@ -236,7 +186,7 @@ function toggleDrawer(){{
     st.markdown("---")
 
     st.markdown("""
-### 🏗️ ¿De qué trata esto?
+### 🏗️ ¿De qué trata ?
 
 Un **dique** es una estructura que contiene un fluido (agua, lodo, químicos).
 Para diseñarlo correctamente necesito saber **con qué fuerza total** el fluido
@@ -252,27 +202,7 @@ Necesito **integrar** la presión a lo largo de toda la altura.
     # ==========================================================================
     st.markdown("---")
     st.markdown("### 📐 ¿De dónde salen las fórmulas?")
-    st.info("""
-    Antes de ver las ecuaciones, definamos las variables que aparecerán.
 
-    • L = longitud del dique (m)
-
-    • H = altura total del fluido (m)
-
-    • y = posición vertical medida desde la base (m)
-
-    • ρ(y) = densidad del fluido
-
-    • g = gravedad (9.81 m/s²)
-
-    • dF = fuerza sobre una pequeña franja del dique
-
-    • dy = espesor infinitesimal de esa franja
-    """)
-
-    st.markdown("""
-    Con estas variables definidas, ahora podemos construir el modelo matemático paso a paso.
-    """)
     col_f1, col_f2 = st.columns([1, 1])
 
     with col_f1:
@@ -287,7 +217,7 @@ En este fluido la densidad **no es constante** — varía con la altura `y`
 según la función de densidad del enunciado:
 """)
         st.latex(r"\rho(y) = 80 \cdot (0{,}25y^3 - y + 10)")
-        st.caption("📌 Este polinomio no se deduce: es el dato de densidad que da el enunciado del problema. Otro caso tendría otra función distinta.")
+
     with col_f2:
         st.markdown("""
 **Paso 2 — Fuerza diferencial**
@@ -331,6 +261,17 @@ como un trapecio:
 - Cuanto mayor es `n`, más delgados son los trapecios → menor error.
 """)
 
+    st.markdown("---")
+    st.markdown("### 💻 ¿Cómo se conecta el código con la física?")
+    st.markdown("""
+| Concepto físico | Función en el código |
+|---|---|
+| Fuerza diferencial `dF = ρ(y)·g·(H-y)·L·dy` | `integrando(y, L, H)` |
+| Suma de trapecios `Σ (f(yᵢ)+f(yᵢ₊₁))/2 · h` | `fuerza_trapecio(L, H, n)` -> bucle `for` |
+| Solución analítica exacta | `fuerza_teorica(L, H)` |
+| Validación numérica | `porcentaje_error(F_trap, F_teo)` |
+""")
+    st.caption("📌 Abrir el drawer lateral para señalar exactamente esas líneas en el código.")
     # ==========================================================================
     # PARÁMETROS INTERACTIVOS
     # ==========================================================================
@@ -380,8 +321,7 @@ como un trapecio:
         st.success(f"✅ Con n={n} trapecios el error es {error:.4f}% — dentro del límite del 2%.")
     else:
         st.warning(f"⚠️ Con n={n} trapecios el error es {error:.4f}% — supera el 2%. Aumentá n.")
-        h_actual = altura / n
-        st.caption(f"↳ Con n={n}, cada trapecio mide h={h_actual:.4f} m de ancho. Entre más grande n, más chico h, y menor el error — porque los trapecios se ajustan mejor a la curva real.")
+
     # ==========================================================================
     # GRÁFICAS
     # ==========================================================================
@@ -529,9 +469,6 @@ como un trapecio:
         ctx.beginPath(); ctx.moveTo(12,base_y); ctx.lineTo(12,base_y-altura*escala_y); ctx.stroke();
         ctx.fillStyle="white"; ctx.font="13px Arial";
         ctx.fillText("H="+altura.toFixed(1)+"m", 2, base_y-altura*escala_y/2);
-        ctx.fillStyle="#ffdd55"; ctx.font="11px Arial";
-        ctx.fillText("y=0", 2, base_y+4);
-        ctx.fillText("y=H", 2, base_y-altura*escala_y-4);
         ctx.beginPath(); ctx.moveTo(20,base_y+8); ctx.lineTo(dique_x,base_y+8); ctx.stroke();
         ctx.fillText("L="+longitud.toFixed(1)+"m", 20+(dique_x-20)/2-20, base_y+20);
         for (let i=0; i<5; i++) {{
@@ -553,7 +490,7 @@ como un trapecio:
         }}
         flechas = flechas.filter(f => f.progreso < f.largo_max+20);
         tiempo++;
-        const obj = Math.min(40, Math.ceil((presionMax / 50000) * 25));
+        const obj = Math.ceil((n/1000)*40);
         if (flechas.length < obj) {{
             const idx=Math.floor(Math.random()*presiones.length);
             const yi=altura*(idx+0.5)/presiones.length;
@@ -591,11 +528,11 @@ como un trapecio:
 
     col_c1, col_c2 = st.columns(2)
     with col_c1:
-        st.success(f"""
+        st.success("""
 **¿Se cumplió el objetivo?**
-Sí. Con los parámetros actuales (n = {n} trapecios) obtuve una fuerza de
-{F_trap:,.2f} N frente a los {F_teo:,.2f} N de la solución teórica,
-con un error de {error:.4f}% — por debajo del límite del 2% exigido.
+Sí. Calculé la fuerza total sobre el dique usando la Regla del Trapecio
+y la validé contra la solución teórica exacta obteniendo un error < 2%
+con solo n = 6 trapecios.
 """)
         st.info("""
 **¿Por qué el error es tan bajo con n pequeño?**

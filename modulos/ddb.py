@@ -53,7 +53,185 @@ def formato_tabla(valor):
     else:
         texto = f"{valor:.0f}"
     return texto.replace(".", ",")
+
 def mostrar():
+
+    # =========================================================
+    # DRAWER LATERAL — GUÍA PARA LA EXPOSICIÓN
+    # =========================================================
+    with st.sidebar:
+
+        st.divider()
+
+        st.subheader("1️⃣ Parámetros físicos")
+
+        st.code("""
+epsilon0 = 8.85e-12
+k = 9.00e9
+lam = 40.0e-9
+L = 100.0
+dy = 0.0100
+        """, language="python")
+
+        st.caption("""
+        Definen las constantes físicas y la aproximación de la barra infinita.
+        """)
+
+        st.divider()
+
+        st.subheader("2️⃣ Integrando del campo eléctrico")
+
+        st.code("""
+f = (2 * k * lam * x) / ((y**2 + x**2)**(3/2))
+        """, language="python")
+
+        st.caption("""
+        Representa el aporte diferencial del campo producido por cada elemento
+        de carga dq = λdy.
+        """)
+
+        st.divider()
+
+        st.subheader("3️⃣ Regla del trapecio")
+
+        st.code("""
+area_trapecio = ((f[i] + f[i+1]) / 2) * dy
+
+integral += area_trapecio
+        """, language="python")
+
+        st.caption("""
+        Suma numéricamente las áreas de los trapecios para aproximar la integral.
+        """)
+
+        st.divider()
+
+        st.subheader("4️⃣ Modelo teórico")
+
+        st.code("""
+E_teo = lam / (2 * pi * epsilon0 * x)
+        """, language="python")
+
+        st.caption("""
+        Valor exacto esperado para una barra infinita.
+        """)
+
+        st.divider()
+
+        st.subheader("5️⃣ Comparación y error")
+
+        st.code("""
+error = np.abs(
+    (E_teorico - E_numerico)
+    / E_teorico
+) * 100
+        """, language="python")
+
+        st.caption("""
+        Permite evaluar qué tan cerca está la aproximación numérica del modelo.
+        """)
+
+        st.divider()
+
+    st.markdown("# ⚡ DDB — Campo eléctrico de una barra infinita cargada")
+    st.markdown("---")
+    st.markdown("""
+### 🔌 ¿De qué trata ?
+Una **barra infinita cargada** genera un campo eléctrico a su alrededor.
+Quiero saber **con qué intensidad** ese campo empuja una carga de prueba
+ubicada a una distancia `x` de la barra.
+
+El problema es que la barra es infinita — no puedo sumar el aporte de
+cada pedacito con álgebra simple. Necesito **integrar** el aporte de cada
+elemento de carga `dq = λ·dy` a lo largo de toda la barra.
+""")
+    
+    st.markdown("---")
+    st.markdown("### 📐 ¿De dónde salen las fórmulas?")
+    st.markdown("### 📌 Variables del problema")
+
+    st.markdown("""
+    <div style="
+        background-color:#111827;
+        padding:20px;
+        border-radius:12px;
+        border:1px solid #374151;
+        color:white;
+        font-size:16px;
+    ">
+
+    <table style="width:100%; border-collapse:collapse;">
+
+    <tr>
+    <th style="text-align:left; padding:8px; border-bottom:1px solid #555;">
+    Variable
+    </th>
+    <th style="text-align:left; padding:8px; border-bottom:1px solid #555;">
+    Significado
+    </th>
+    </tr>
+
+    <tr>
+    <td style="padding:8px;">λ (lambda)</td>
+    <td style="padding:8px;">Densidad lineal de carga = 40,0 × 10⁻⁹ C/m</td>
+    </tr>
+
+    <tr>
+    <td style="padding:8px;">x</td>
+    <td style="padding:8px;">Distancia perpendicular desde la barra hasta el punto de medición (m)</td>
+    </tr>
+
+    <tr>
+    <td style="padding:8px;">y</td>
+    <td style="padding:8px;">Posición a lo largo de la barra — variable de integración (m)</td>
+    </tr>
+
+    <tr>
+    <td style="padding:8px;">k</td>
+    <td style="padding:8px;">Constante de Coulomb = 9,00 × 10⁹ N·m²/C²</td>
+    </tr>
+
+    <tr>
+    <td style="padding:8px;">ε₀</td>
+    <td style="padding:8px;">Permitividad del vacío = 8,85 × 10⁻¹² C²/(N·m²)</td>
+    </tr>
+
+    <tr>
+    <td style="padding:8px;">dE</td>
+    <td style="padding:8px;">Campo eléctrico diferencial producido por un elemento de carga (N/C)</td>
+    </tr>
+
+    <tr>
+    <td style="padding:8px;">E</td>
+    <td style="padding:8px;">Campo eléctrico total generado por la barra (N/C)</td>
+    </tr>
+
+    </table>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+    col_f1, col_f2 = st.columns(2)
+    with col_f1:
+        st.markdown("**Paso 1 — Campo de un elemento de carga `dq`**")
+        st.latex(r"dq = \lambda \, dy")
+        st.latex(r"dE = \frac{k \cdot dq}{r^2} = \frac{k \cdot \lambda \, dy}{y^2 + x^2}")
+        st.markdown("**Paso 2 — Solo la componente horizontal sobrevive** (por simetría, las verticales se cancelan):")
+        st.latex(r"dE_x = dE \cdot \cos\theta = \frac{k \cdot \lambda \cdot x \, dy}{(y^2 + x^2)^{3/2}}")
+
+    with col_f2:
+        st.markdown("**Paso 3 — Integrar de 0 a L y multiplicar por 2** (simetría de la barra):")
+        st.latex(r"E(x) = 2\int_0^L \frac{k \cdot \lambda \cdot x}{(y^2 + x^2)^{3/2}} \, dy")
+        st.markdown("**Solución teórica exacta** (barra infinita, L → ∞):")
+        st.latex(r"E(x) = \frac{\lambda}{2\pi\varepsilon_0 \cdot x}")
+        st.caption("📌 Nota: k = 1/(4πε₀), por eso ambas expresiones son equivalentes.")
+
+    st.markdown("**Integrando numérico** — lo que el código evalúa en cada punto `y`:")
+    st.latex(r"f(y) = \frac{2 \cdot k \cdot \lambda \cdot x}{(y^2 + x^2)^{3/2}}")
+    st.info("""
+💡 El factor 2 aparece porque integro solo de 0 a L (mitad de la barra)
+y la barra es simétrica. La otra mitad aporta exactamente lo mismo.
+""")
     # =========================================================
     # MÉTODO NUMÉRICO DEL TRAPECIO
     # =========================================================
@@ -89,6 +267,20 @@ def mostrar():
             f"{formato_tabla(E_teorico[i]):<22}"
             f"{formato_tabla(error[i]):<12}"
         )
+    
+    st.markdown("---")
+    st.markdown("### 💻 ¿Cómo se conecta el código con la física?")
+    st.markdown("""
+| Concepto físico | Línea en el código |
+|---|---|
+| Integrando `f(y) = 2kλx/(y²+x²)^(3/2)` | `f = (2 * k * lam * x) / ((y**2 + x**2)**(3/2))` |
+| Área de cada trapecio `(f(yᵢ)+f(yᵢ₊₁))/2 · Δy` | `area_trapecio = ((f[i] + f[i+1]) / 2) * dy` |
+| Suma de todos los trapecios | `integral += area_trapecio` — bucle `for i in range(N)` |
+| Solución teórica `E = λ/(2πε₀x)` | `E_teo = lam / (2 * pi * epsilon0 * x)` |
+| Error porcentual | `error = abs((E_teorico - E_numerico) / E_teorico) * 100` |
+""")
+    st.caption("📌 Abrir el drawer lateral para señalar esas líneas exactas.")
+
     # =========================================================
     # SLIDER INTERACTIVO DE POSICIÓN x
     # =========================================================
@@ -497,7 +689,7 @@ for(let i=0;i<N_LINEAS;i++){{
 dibujar();
 </script>
 """
-    st.markdown("### Visualización del campo eléctrico de la barra(Mejorar con flechas)")
+    st.markdown("### 🌊 Visualización: campo eléctrico de la barra cargada")
     st.caption("Las partículas representan cargas positivas empujadas por el campo. "
                "Cerca de la barra salen más rápido (campo fuerte). "
                "Mové el slider para ver cómo cambia E con la distancia.")
@@ -523,4 +715,33 @@ dibujar();
    a una barra infinita.
 5. Si se disminuye Δy o se aumenta el valor de L, la aproximación numérica
    mejora, aunque también aumenta el costo computacional.
+""")
+    
+    st.markdown("---")
+    st.markdown("### ✅ Conclusiones")
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
+        st.success(f"""
+**¿Se cumplió el objetivo?**
+Sí. En x = {x_sel:.1f} m se obtuvo E numérico = {formato_tabla(E_numerico[idx_sel])} N/C
+frente al valor teórico de {formato_tabla(E_teorico[idx_sel])} N/C,
+con un error de {error[idx_sel]:.4f}%.
+""")
+        st.info("""
+**¿Por qué el error es bajo para x pequeño?**
+Cerca de la barra (x pequeño), los extremos de la barra a ±100 m
+contribuyen muy poco al campo — la integral converge rápido.
+Con L = 100 m es suficiente para aproximar la barra infinita.
+""")
+    with col_c2:
+        st.warning("""
+**Limitación del método**
+Para x grande (ej. 80 m), los extremos de la barra a ±100 m
+todavía aportan campo no despreciable. Una barra verdaderamente
+infinita aportaría más — por eso el error aumenta con x.
+""")
+        st.info("""
+**Ventaja computacional**
+Con Δy = 0,01 m y L = 100 m uso 10.000 intervalos por cada punto x.
+Eso da una aproximación muy precisa de la integral en todo el rango.
 """)
