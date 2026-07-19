@@ -1,5 +1,11 @@
 import streamlit as st
-from modulos import inicio, dda, ddb, ddc, ddd
+import inicio
+from simulations import (
+    hydraulic_force,
+    electric_field,
+    standing_waves,
+    optical_mirage,
+)
 
 
 st.set_page_config(
@@ -21,10 +27,10 @@ SECCIONES = [
 
 PAGINAS = {
     "🏠 Inicio": inicio,
-    "📐 DDA — Fuerza hidráulica": dda,
-    "⚡ DDB — Campo eléctrico": ddb,
-    "〰️ DDC — Ondas estacionarias": ddc,
-    "🌅 DDD — Espejismo óptico": ddd,
+    "📐 DDA — Fuerza hidráulica": hydraulic_force,
+    "⚡ DDB — Campo eléctrico": electric_field,
+    "〰️ DDC — Ondas estacionarias": standing_waves,
+    "🌅 DDD — Espejismo óptico": optical_mirage,
 }
 
 
